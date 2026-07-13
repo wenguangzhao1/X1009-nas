@@ -1,0 +1,16 @@
+[Unit]
+Description=NAS Monitor Dashboard
+After=network-online.target smbd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=msj
+ExecStart=/usr/bin/python3 /home/msj/zw/nas-monitor.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
