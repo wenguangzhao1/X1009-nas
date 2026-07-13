@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi 5 NAS 架构图</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e1e4ed;
+    --text-dim: #8b8fa3;
+    --accent-blue: #5b8def;
+    --accent-green: #4ecb8d;
+    --accent-orange: #f0a050;
+    --accent-red: #e85d6a;
+    --accent-purple: #a78bfa;
+    --accent-cyan: #38d9d0;
+    --accent-yellow: #f5d76e;
+    --pi-color: #c2ffb3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 20px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 48px;
+  }
+  .diagram {
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* Network layer */
+  .layer-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+  .network-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .router-box {
+    background: var(--surface);
+    border: 2px solid var(--accent-cyan);
+    border-radius: 12px;
+    padding: 16px 28px;
+    text-align: center;
+    position: relative;
+  }
+  .router-box .icon { font-size: 28px; }
+  .router-box .name { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .router-box .ip { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Connection lines from router */
+  .connections {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin: 0 auto 0;
+    max-width: 900px;
+    position: relative;
+  }
+  .conn-line {
+    height: 2px;
+    width: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Main NAS box */
+  .nas-container {
+    background: var(--surface);
+    border: 2px solid var(--accent-green);
+    border-radius: 16px;
+    padding: 32px;
+    margin: 0 auto;
+    max-width: 1060px;
+    position: relative;
+    box-shadow: 0 0 40px rgba(78, 203, 141, 0.08);
+  }
+  .nas-title {
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .nas-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .nas-subtitle span { color: var(--accent-green); }
+
+  /* Grid layout */
+  .nas-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .nas-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .nas-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nas-section-title .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Network interfaces */
+  .net-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .net-item:last-child { margin-bottom: 0; }
+  .net-item .iface { font-weight: 600; }
+  .net-item .ip { color: var(--accent-cyan); font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
+  .net-item .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .badge-primary { background: rgba(78,203,141,0.2); color: var(--accent-green); }
+  .badge-backup { background: rgba(245,215,110,0.2); color: var(--accent-yellow); }
+
+  /* Disk items */
+  .disk-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    align-items: center;
+  }
+  .disk-item:last-child { margin-bottom: 0; }
+  .disk-item .model { font-weight: 600; }
+  .disk-item .size { color: var(--text-dim); font-size: 12px; }
+  .disk-item .health {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    grid-column: 2;
+  }
+  .health-ok { background: rgba(78,203,141,0.2); color: var(--accent-green); }
+  .health-warn { background: rgba(240,160,80,0.2); color: var(--accent-orange); }
+  .health-danger { background: rgba(232,93,106,0.2); color: var(--accent-red); }
+
+  /* Service items */
+  .service-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .service-item:last-child { margin-bottom: 0; }
+  .service-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .service-status .circle {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .circle-active { background: var(--accent-green); }
+  .circle-inactive { background: var(--text-dim); }
+
+  /* Share table */
+  .share-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  .share-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .share-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .share-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .share-table tr:last-child td { border-bottom: none; }
+  .share-table .name { font-weight: 600; color: var(--accent-purple); }
+  .share-table .path { color: var(--text-dim); font-family: 'SF Mono', 'Cascadia Code', monospace; font-size: 12px; }
+  .share-table .usage-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.08);
+    min-width: 60px;
+    position: relative;
+  }
+  .share-table .usage-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: absolute;
+    left: 0; top: 0;
+  }
+
+  /* Warning section */
+  .warning-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .warning-card {
+    background: rgba(232,93,106,0.06);
+    border: 1px solid rgba(232,93,106,0.25);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .warning-card .warn-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-red);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .warning-card .warn-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 36px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .footer .access-info {
+    display: inline-block;
+    background: rgba(91,141,239,0.15);
+    border: 1px solid rgba(91,141,239,0.3);
+    border-radius: 8px;
+    padding: 8px 20px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .footer .access-info code {
+    color: var(--accent-blue);
+    font-family: 'SF Mono', 'Cascadia Code', monospace;
+    font-weight: 600;
+  }
+
+  /* Arrow connector */
+  .arrow-connector {
+    display: flex;
+    justify-content: center;
+    margin: -16px 0;
+  }
+  .arrow-connector svg {
+    width: 2px;
+    height: 24px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .nas-grid { grid-template-columns: 1fr; }
+    .warning-section { grid-template-columns: 1fr; }
+    .network-row { flex-direction: column; gap: 16px; }
+    .share-table { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- @dsCard group="Architecture" name="Pi 5 NAS Architecture Diagram" viewport="width=1100" -->
+
+<h1>Pi 5 NAS 系统架构</h1>
+<p class="subtitle">Raspberry Pi 5 Model B · Debian 13 (trixie) · 4 盘位 SATA · Samba 共享</p>
+
+<div class="diagram">
+
+  <!-- Network Row -->
+  <div class="layer-label">网络层</div>
+  <div class="network-row">
+    <div class="router-box">
+      <div class="icon">🌐</div>
+      <div class="name">路由器</div>
+      <div class="ip">192.168.0.1</div>
+    </div>
+  </div>
+
+  <!-- Arrow down -->
+  <div style="display:flex;justify-content:center;margin:-8px 0 16px;">
+    <svg width="2" height="20"><line x1="1" y1="0" x2="1" y2="18" stroke="#38d9d0" stroke-width="2" stroke-dasharray="4,3"/></svg>
+  </div>
+
+  <!-- NAS Container -->
+  <div class="nas-container">
+    <div class="nas-title">🖥️ Raspberry Pi 5 NAS</div>
+    <div class="nas-subtitle">
+      <span>4GB RAM</span> · 2.4GHz Quad-Core · Kernel 6.18.34 · 总存储 <span>~1.1 TB</span>
+    </div>
+
+    <div class="nas-grid">
+
+      <!-- Network Interfaces -->
+      <div class="nas-section">
+        <div class="nas-section-title">
+          <span class="dot" style="background:var(--accent-cyan)"></span>
+          网络接口
+        </div>
+        <div class="net-item">
+          <span class="iface">eth0</span>
+          <span class="ip">192.168.0.101</span>
+          <span class="badge badge-primary">主</span>
+        </div>
+        <div class="net-item">
+          <span class="iface">wlan0</span>
+          <span class="ip">192.168.0.100</span>
+          <span class="badge badge-backup">备</span>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:12px;color:var(--text-dim);">
+          默认网关: <code style="color:var(--accent-cyan)">192.168.0.1</code><br>
+          子网: <code style="color:var(--accent-cyan)">192.168.0.0/24</code>
+        </div>
+      </div>
+
+      <!-- SATA Disks -->
+      <div class="nas-section">
+        <div class="nas-section-title">
+          <span class="dot" style="background:var(--accent-orange)"></span>
+          存储磁盘
+        </div>
+        <div class="disk-item">
+          <div>
+            <div class="model">ST3160815AS</div>
+            <div class="size">160 GB · 7,739h</div>
+          </div>
+          <span class="health health-warn">⚠ CRC ×149</span>
+        </div>
+        <div class="disk-item">
+          <div>
+            <div class="model">ST500DM002</div>
+            <div class="size">500 GB · 11,420h</div>
+          </div>
+          <span class="health health-ok">健康</span>
+        </div>
+        <div class="disk-item">
+          <div>
+            <div class="model">ST500DM002</div>
+            <div class="size">500 GB · 15,819h</div>
+          </div>
+          <span class="health health-ok">健康</span>
+        </div>
+        <div class="disk-item">
+          <div>
+            <div class="model">ST500DM002</div>
+            <div class="size">500 GB · 4,886h</div>
+          </div>
+          <span class="health health-danger">⛔ 重分配×400</span>
+        </div>
+      </div>
+
+      <!-- Services -->
+      <div class="nas-section">
+        <div class="nas-section-title">
+          <span class="dot" style="background:var(--accent-green)"></span>
+          系统服务
+        </div>
+        <div class="service-item">
+          <span>SSH (sshd)</span>
+          <span class="service-status"><span class="circle circle-active"></span> 运行中</span>
+        </div>
+        <div class="service-item">
+          <span>Samba (smbd)</span>
+          <span class="service-status"><span class="circle circle-active"></span> 运行中</span>
+        </div>
+        <div class="service-item">
+          <span>Docker</span>
+          <span class="service-status"><span class="circle circle-inactive"></span> 未启用</span>
+        </div>
+        <div class="service-item">
+          <span>Home Assistant</span>
+          <span class="service-status"><span class="circle circle-inactive"></span> 未启用</span>
+        </div>
+        <div class="service-item">
+          <span>Sonarr / Radarr</span>
+          <span class="service-status"><span class="circle circle-inactive"></span> 未启用</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Samba Shares -->
+    <div class="share-section">
+      <div class="nas-section-title">
+        <span class="dot" style="background:var(--accent-purple)"></span>
+        Samba 共享目录
+      </div>
+      <table class="share-table">
+        <thead>
+          <tr>
+            <th>共享名</th>
+            <th>路径</th>
+            <th>来源盘</th>
+            <th>大小</th>
+            <th>已用</th>
+            <th>使用率</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name">sda-系统</td>
+            <td class="path">/mnt/sda</td>
+            <td>sda (160GB)</td>
+            <td>160 GB</td>
+            <td>91 MB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:1%;background:var(--accent-green)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdb-系统</td>
+            <td class="path">/mnt/sdb</td>
+            <td>sdb (500GB)</td>
+            <td>500 GB</td>
+            <td>101 MB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:1%;background:var(--accent-green)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdc-系统</td>
+            <td class="path">/mnt/sdc</td>
+            <td>sdc (500GB)</td>
+            <td>500 GB</td>
+            <td>101 MB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:1%;background:var(--accent-green)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdd1</td>
+            <td class="path">/mnt/sdd1</td>
+            <td>sdd-part1</td>
+            <td>50 GB</td>
+            <td>24 GB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:47%;background:var(--accent-orange)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdd5-软件</td>
+            <td class="path">/mnt/sdd5</td>
+            <td>sdd-part5</td>
+            <td>140 GB</td>
+            <td>38 GB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:28%;background:var(--accent-green)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdd6-文档</td>
+            <td class="path">/mnt/sdd6</td>
+            <td>sdd-part6</td>
+            <td>140 GB</td>
+            <td>35 GB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:26%;background:var(--accent-green)"></div></div></td>
+          </tr>
+          <tr>
+            <td class="name">sdd7-娱乐</td>
+            <td class="path">/mnt/sdd7</td>
+            <td>sdd-part7</td>
+            <td>138 GB</td>
+            <td>36 GB</td>
+            <td><div class="usage-bar" style="width:80px"><div class="usage-fill" style="width:26%;background:var(--accent-green)"></div></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Warnings -->
+    <div class="warning-section">
+      <div class="warning-card">
+        <div class="warn-title">⚠️ 数据线缆问题</div>
+        <div class="warn-desc">
+          <strong>sda</strong> (ST3160815AS) 的 UDMA CRC 错误计数为 <strong>149</strong><br>
+          → 建议更换 SATA 数据线
+        </div>
+      </div>
+      <div class="warning-card">
+        <div class="warn-title">⛔ 磁盘老化风险</div>
+        <div class="warn-desc">
+          <strong>sdd</strong> (ST500DM002) 的重分配扇区数为 <strong>400</strong><br>
+          → 建议备份重要数据并准备更换
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="access-info">
+    访问地址: <code>\\192.168.0.101</code> &nbsp;|&nbsp; 用户: <code>msj</code> &nbsp;|&nbsp; 端口: <code>139</code> / <code>445</code>
+  </div>
+  <div style="margin-top:8px;">
+    Samba 配置: /etc/samba/smb.conf &nbsp;·&nbsp; 自动挂载: /etc/fstab (UUID)
+  </div>
+</div>
+
+</body>
+</html>
